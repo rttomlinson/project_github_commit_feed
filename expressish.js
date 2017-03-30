@@ -32,7 +32,6 @@ let app = function () {
                 resolve(data);
             };
         }
-
         //console.log('req.url:', req.url);
         //Check url path
         if (req.url == '/github/webhooks'){

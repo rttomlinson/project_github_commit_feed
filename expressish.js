@@ -9,14 +9,15 @@ const GITHUB_API_KEY = require('./config').GITHUB_API_KEY;
 let github = require('./githubapiwrapper')(GITHUB_API_KEY);
 
 let app = function () {
-    //App instance current commitData
-    let _appCommitData = '';
     //Object that will hold functions used by the application
     let api = requestHandler;
     //Allows app to set commitData
-    api.setCommitData = function setCommitData(commitData) {
-        _appCommitData = commitData;
-    };
+    
+    let pathToCommits = './data/commits.json';
+    
+    function getCommitData() {
+        return fs.readFileSync(pathToCommits, 'utf8');
+    }
     
     
     let routes = {};
@@ -138,6 +139,57 @@ let app = function () {
             .catch(function errors(err) {
                     console.log(err); //Should just throw the error
             });
+        } else if (method == 'get'){
+            let paths = Object.keys(routes.get);
+            let found = false;
+            let pathsLength = paths.length;
+            let index = 0;
+            
+            //update internally stored commit data
+            
+
+            while(!found && index < pathsLength) {
+                let regex = new RegExp(paths[index], 'gi');
+                let match = regex.exec(req.url);
+                req.params = {};
+                if (match) { //Add all route params to the req.params object
+                    found = true;
+                    // let p = new Promise(function (resolve, reject) {
+                        
+                    //     resolve(match[1]);
+                    // });
+                    // p.then(function onFulfilled(data) {
+                    
+                        //Loop through the path and grab all the values
+                        for (let i = 1; i <= match.length; i++) {
+                            req.params[routes.get[paths[index]].params[i-1]] = match[i];
+                        }
+                                    //Read index.html file of public directory
+                        let p = new Promise(function (resolve, reject) {
+                            let cb = promiseWrap(resolve, reject);
+                            fs.readFile(path, {"encoding": encoding}, cb);
+                        });
+                        p.then(function onFulfilled(data) {
+                            //Replace placeholder with the commitData returned from the server
+                            data = data.replace(/{{ commitFeed }}/, getCommitData());
+                
+                            res.end(data);
+                        })
+                        .catch(function onError(err) {
+                            res.end(err);
+                        });
+                        //routes.get[paths[index]].callback(req, res);
+                //     }).catch(function rejected(err) {
+                //         throw err;
+                // });
+                    }
+                index++;
+            }
+            if (!found) { //No matches, endpoint not found
+                res.statusCode = 404;
+                res.end("Not found");
+            }
+
         }
 
         //Parse the query string of the submitted form
@@ -160,15 +212,28 @@ let app = function () {
               //Write to commits.json file
               //Path to commits.json file
               // NOTE: The APPEND functionality is pending - currently overwriting each time we request
-              let pathToCommits = './data/commits.json';
               let p = new Promise(function (resolve, reject) {
                   let cb = promiseWrap(resolve, reject);
                   fs.writeFile(pathToCommits, JSON.stringify(data, null, 2), cb);
               });
               p.then(function onFulfilled() {
                   console.log("Data appended successfully to commits.json");
+                    let p = new Promise(function (resolve, reject) {
+                        let cb = promiseWrap(resolve, reject);
+                        fs.readFile(path, {"encoding": encoding}, cb);
+                    });
+                    p.then(function onFulfilled(data) {
+                        //Replace placeholder with the commitData returned from the server
+                        data = data.replace(/{{ commitFeed }}/, getCommitData());
+                    
+                        res.end(data);
+                    })
+                    .catch(function onError(err) {
+                        res.end(err);
+                    });
               }, function onRejection(err) {
                   console.error('An error occured:', err);
+                  //res.redirect('/');
               })
               .catch(function onError(err){
                   console.error("Error occurred while writing to commits.json", err);
@@ -177,24 +242,7 @@ let app = function () {
             
             });
         }
-        // else{
-        // }
-        //console.log(user, repo);
 
-        //Read index.html file of public directory
-        let p = new Promise(function (resolve, reject) {
-            let cb = promiseWrap(resolve, reject);
-            fs.readFile(path, {"encoding": encoding}, cb);
-        });
-        p.then(function onFulfilled(data) {
-            //Replace placeholder with the commitData returned from the server
-            data = data.replace(/{{ commitFeed }}/, _appCommitData);
-
-            res.end(data);
-        })
-        .catch(function onError(err) {
-            res.end(err);
-        });
     }
     return api;
 

@@ -104,34 +104,39 @@ let app = function () {
         }
         //console.log('req.url:', req.url);
         //Check url path
-        if (req.url == '/github/webhooks' && method == 'post'){
-          var _headers = {
-                "Content-Type": "text/html",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type",
-                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE"
-                };
-            res.writeHead(200, _headers);
-            //res.end("Hello webhooks")
-            console.log("Hello webhooks");
+        if (method == 'post'){
+                      //parse the url for the query params
+            //parse for the path until the question mark
 
-            // Initialize a string to concat
-            // the data
-            var body = '';
+            let paths = Object.keys(routes.post);
+            let found = false;
+            let pathsLength = paths.length;
+            let index = 0;
+            let p = new Promise(function (resolve, reject) {
 
-            // Every time a data event is fired
-            // we concat the next chunk of data
-            // to the string
-            req.on('data', (data) => {
-              body += data;
+                while(!found && index < pathsLength) {
+                    let regex = new RegExp(paths[index], 'gi');
+                    let match = regex.exec(req.url);
+                    req.body = {};
+                    if (match) { //Add all route params to the req.params object
+                        found = true;
+                        resolve(index);
+                    } else {
+                        index++;
+                    }
+                }
+                if (!found) { //No matches, endpoint not found
+                    reject(404);
+                }
             });
-
-            // When the end event is fired
-            // we know we have all the data
-            // and can send back a response
-            req.on('end', () => {
-              console.log(body);
-              res.end(body);
+            p.then(function onFulfilled(data) {
+                    routes.post[paths[data]].callback(req, res); 
+                }, function onReject(err) {
+                    res.statusCode = err;
+                    res.end("Not found");
+            })
+            .catch(function errors(err) {
+                    console.log(err); //Should just throw the error
             });
         }
 

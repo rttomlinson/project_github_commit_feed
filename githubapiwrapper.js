@@ -30,7 +30,7 @@ function Session(apiKey) {
     let session = {};
     
     //Make property for commitsData
-    session.commitsData = '';
+    //Get rid of this line session.commitsData = '';
     
     
     //Needs to be moved to the githubwrapper.js module

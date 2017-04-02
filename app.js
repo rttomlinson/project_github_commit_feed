@@ -14,13 +14,22 @@ app.setCommitData(prettyCommits);
 
 
 
+app.get('/', function(req, res) {
+    res.end("Root directory called");
+});
+
+
+
+
 //Set port
 let port = process.env.PORT || 3000;
 
 
 //Create new server
-let server = http.createServer(app.requestHandler);
+let server = http.createServer(app);
 
 
 //Start listening on server
 server.listen(port);
+
+

@@ -12,16 +12,86 @@ let app = function () {
     //App instance current commitData
     let _appCommitData = '';
     //Object that will hold functions used by the application
-    let api = {};
+    let api = requestHandler;
     //Allows app to set commitData
     api.setCommitData = function setCommitData(commitData) {
         _appCommitData = commitData;
     };
+    
+    
+    let routes = {};
+    
+    routes.get = {};
+    /*
+    {
+        'pattern1' { callback: callback,
+            params: params
+            }
+        'pattern2', callback
+    }
+    */
+    routes.post = {};
+    
+    api.get = function get(path, callback) { //maybe we should save the matched regex somewhere?
+        //Pass path and callback to routes property
+        // path = /:foo
+        // regex(path)
+        // req.url = /egle
+        //if the path matches a regex expression, we save that regex express.
+        // when the server receives a request we check the url against the regex to find a match
+        //
+        //var path = '/path/:to/something/:else';
+    
+        var array = [];
+        var paramsArray = [];
+        var segments = path.split('/');
+        console.log("segments is ", segments);
+        segments.forEach((segment) => {
+          if (segment[0] === ':') {
+            array.push('([^\\/]+)');
+            paramsArray.push(segment.slice(1));
+          } else {
+            array.push(segment);
+          }
+        });
+        
+        var pattern = array.join('\\/');
+        //=> /path/([^\\/]+)/something/([^\\/]+)
+        console.log("value of the pattern added to routes", pattern);
+        
+        
+        
+        routes.get[pattern] = {};
+        routes.get[pattern].callback = callback;
+        routes.get[pattern].params = paramsArray;
+    }
+    
+    api.post = function post(path, callback) { //maybe we should save the matched regex somewhere?
+        //Pass path and callback to routes property
+        // path = /:foo
+        // regex(path)
+        // req.url = /egle
+        //if the path matches a regex expression, we save that regex express.
+        // when the server receives a request we check the url against the regex to find a match
+        //
+        //var path = '/path/:to/something/:else';
+    
+        let pathPattern = pathSegmenter(path);
+        
+        let pattern = pathPattern.pathPattern;
+        let paramsArray = pathPattern.paramsArray;
+        //=> /path/([^\\/]+)/something/([^\\/]+)
+        routes.post[pattern] = {};
+        routes.post[pattern].callback = callback;
+        routes.post[pattern].params = paramsArray;
+    };
+    
     //The app request handler
-    api.requestHandler = function(req, res) {
+    function requestHandler(req, res) {
         //Need to be able to configure the path from the app.js file
         let path = './public/index.html';
         let encoding = 'utf8';
+        let method = req.method.toLowerCase();
 
         //This function allows a error first callback to call resolve/reject of a promise
         function promiseWrap(resolve, reject) {
@@ -34,7 +104,7 @@ let app = function () {
         }
         //console.log('req.url:', req.url);
         //Check url path
-        if (req.url == '/github/webhooks'){
+        if (req.url == '/github/webhooks' && method == 'post'){
           var _headers = {
                 "Content-Type": "text/html",
                 "Access-Control-Allow-Origin": "*",
@@ -72,15 +142,15 @@ let app = function () {
 
         //Configuration object for the getCommits function
         let { user, repo } = queryParams;
-        if(user !== undefined && repo !== undefined ){
+        if( user && repo ){
           let commitsConfig = {
               'owner': user,
               'repo': repo
           };
-          //Now send request to Github API using the getCommits function
-          //Should also be wrapped in promise
-          github.getCommits(commitsConfig)
-          .then(function onFulfilled(data) {
+            //Now send request to Github API using the getCommits function
+            //Should also be wrapped in promise
+            github.getCommits(commitsConfig)
+            .then(function onFulfilled(data) {
               //console.log('cleaned up data', data);
               //Write to commits.json file
               //Path to commits.json file
@@ -98,9 +168,9 @@ let app = function () {
               .catch(function onError(err){
                   console.error("Error occurred while writing to commits.json", err);
               });
-
-
-          });
+            
+            
+            });
         }
         // else{
         // }
@@ -120,7 +190,7 @@ let app = function () {
         .catch(function onError(err) {
             res.end(err);
         });
-    };
+    }
     return api;
 
 };
@@ -128,3 +198,23 @@ let app = function () {
 
 
 module.exports = app;
+
+
+
+
+
+function pathSegmenter(path) {
+    let array = [];
+    let paramsArray = [];
+    let segments = path.split('/');
+    segments.forEach((segment) => {
+      if (segment[0] === ':') {
+        array.push('([^\\/]+)');
+        paramsArray.push(segment.slice(1));
+      } else {
+        array.push(segment);
+      }
+    });
+    
+    return { 'pathPattern': array.join('/'), 'params': paramsArray };
+}
